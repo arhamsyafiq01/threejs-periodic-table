@@ -7,6 +7,7 @@
       name="viewport"
       content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
     />
+    <link type="text/css" rel="stylesheet" href="main.css" />
 
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -19,7 +20,6 @@
         overflow: hidden;
       }
 
-      /* LOGIN OVERLAY */
       #login-overlay {
         position: fixed;
         top: 0;
@@ -65,7 +65,6 @@
         margin-top: 20px;
       }
 
-      /* 3D SCENE CONTAINER */
       #container {
         width: 100%;
         height: 100%;
@@ -73,7 +72,6 @@
         top: 0;
       }
 
-      /* MENU BUTTONS */
       #menu {
         position: absolute;
         bottom: 20px;
@@ -102,7 +100,6 @@
         background-color: rgba(0, 255, 255, 0.75);
       }
 
-      /* 3D CARD ELEMENT */
       .element {
         width: 120px;
         height: 160px;
@@ -153,7 +150,6 @@
   </head>
 
   <body>
-    <!-- LOGIN OVERLAY -->
     <div id="login-overlay">
       <div class="login-card">
         <h2>Welcome Back</h2>
@@ -162,7 +158,6 @@
       </div>
     </div>
 
-    <!-- 3D APP -->
     <div id="container"></div>
     <div id="menu">
       <button id="table">TABLE</button>
@@ -171,7 +166,6 @@
       <button id="grid">GRID</button>
     </div>
 
-    <!-- Import Map for Three.js -->
     <script type="importmap">
       {
         "imports": {
@@ -190,23 +184,15 @@
         CSS3DObject,
       } from "three/addons/renderers/CSS3DRenderer.js";
 
-      // ----------------------------
-      // CONFIGURATION
-      // ----------------------------
       const GOOGLE_CLIENT_ID =
         "471042040576-s0bd041uh64cpognlcsbu7ko0bfge5gp.apps.googleusercontent.com";
-      // Optional: Load real Google Sheet CSV URL
-      const GOOGLE_SHEET_CSV_URL =
-        "https://docs.google.com/spreadsheets/d/1ANnOj4xZTW-hYUnw5q-UqlqYCK5XBkIPfLPC_V2vLhs/edit?usp=sharing";
 
       let tableData = [];
       let camera, scene, renderer, controls;
       const objects = [];
       const targets = { table: [], sphere: [], helix: [], grid: [] };
 
-      // ----------------------------
-      // GOOGLE SIGN-IN
-      // ----------------------------
+      // FIXED INITIALIZE (No redirect_uri!)
       window.onload = () => {
         google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
@@ -215,31 +201,21 @@
 
         google.accounts.id.renderButton(
           document.getElementById("google-btn-wrapper"),
-          {
-            theme: "outline",
-            size: "large",
-            width: 250,
-          }
+          { theme: "outline", size: "large", width: 250 }
         );
       };
 
       function handleCredentialResponse(response) {
         console.log("Google Token:", response.credential);
 
-        // Hide login overlay
         const overlay = document.getElementById("login-overlay");
         overlay.style.opacity = 0;
         setTimeout(() => (overlay.style.display = "none"), 800);
 
-        // Start visualization
         initApp();
       }
 
-      // ----------------------------
-      // 3D DATA VISUALIZATION
-      // ----------------------------
       async function initApp() {
-        // Option A: Mock Data
         for (let i = 0; i < 200; i++) {
           const netWorth = Math.floor(Math.random() * 200000) + 50000;
           tableData.push({
@@ -248,27 +224,6 @@
             net_worth: netWorth,
           });
         }
-
-        // Option B: Fetch CSV from Google Sheet
-        /*
-        try {
-          const response = await fetch(GOOGLE_SHEET_CSV_URL);
-          const text = await response.text();
-          const rows = text.split("\n").slice(1);
-          tableData = rows.map(row => {
-            const cols = row.split(",");
-            if (cols.length < 4) return null;
-            return {
-              name: cols[0].trim(),
-              details: cols[1].trim(),
-              image: cols[2].trim(),
-              net_worth: parseInt(cols[3].trim())
-            };
-          }).filter(item => item !== null);
-        } catch (err) {
-          console.error("CSV load failed, using mock data.", err);
-        }
-        */
 
         initScene();
         animate();
@@ -285,21 +240,21 @@
 
         scene = new THREE.Scene();
 
-        // Create elements
         tableData.forEach((item, i) => {
           const element = document.createElement("div");
           element.className = "element";
 
-          // Conditional color
           if (item.net_worth < 100000)
             element.style.backgroundColor = "rgba(239,48,34,0.85)";
           else if (item.net_worth >= 200000)
             element.style.backgroundColor = "rgba(58,159,72,0.85)";
           else element.style.backgroundColor = "rgba(253,202,53,0.85)";
 
-          element.innerHTML = `<img src="${item.image}"><div class="name">${
-            item.name
-          }</div><div class="details">$${item.net_worth.toLocaleString()}</div>`;
+          element.innerHTML = `
+            <img src="${item.image}">
+            <div class="name">${item.name}</div>
+            <div class="details">$${item.net_worth.toLocaleString()}</div>
+          `;
 
           const obj = new CSS3DObject(element);
           obj.position.set(
@@ -324,7 +279,6 @@
         const vector = new THREE.Vector3();
         const l = objects.length;
 
-        // TABLE
         objects.forEach((obj, i) => {
           const tableObj = new THREE.Object3D();
           tableObj.position.x = (i % 20) * 140 - 1330;
@@ -332,7 +286,6 @@
           targets.table.push(tableObj);
         });
 
-        // SPHERE
         for (let i = 0; i < l; i++) {
           const phi = Math.acos(-1 + (2 * i) / l);
           const theta = Math.sqrt(l * Math.PI) * phi;
@@ -343,7 +296,6 @@
           targets.sphere.push(sphereObj);
         }
 
-        // HELIX
         for (let i = 0; i < l; i++) {
           const theta = i * 0.175 + (i % 2 ? Math.PI : 0);
           const y = -i * 8 + 450;
@@ -358,7 +310,6 @@
           targets.helix.push(helixObj);
         }
 
-        // GRID
         for (let i = 0; i < l; i++) {
           const ix = i % 10;
           const iy = Math.floor(i / 10) % 4;
@@ -406,15 +357,18 @@
         objects.forEach((obj, i) => {
           const target = targets[i];
           if (!target) return;
+
           new TWEEN.Tween(obj.position)
             .to(target.position, Math.random() * duration + duration)
             .easing(TWEEN.Easing.Exponential.InOut)
             .start();
+
           new TWEEN.Tween(obj.rotation)
             .to(target.rotation, Math.random() * duration + duration)
             .easing(TWEEN.Easing.Exponential.InOut)
             .start();
         });
+
         new TWEEN.Tween(this)
           .to({}, duration * 2)
           .onUpdate(render)
