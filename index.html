@@ -1,17 +1,13 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Sign In & 3D Data Visualization</title>
+    <title>Periodictable</title>
+    <link rel="icon" type="image/png" href="image.jpg" />
     <meta charset="utf-8" />
     <meta
       name="viewport"
       content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
     />
-    <link type="text/css" rel="stylesheet" href="main.css" />
-
-    <!-- Google Identity Services -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-
     <style>
       body {
         margin: 0;
@@ -20,6 +16,7 @@
         overflow: hidden;
       }
 
+      /* LOGIN UI */
       #login-overlay {
         position: fixed;
         top: 0;
@@ -34,7 +31,6 @@
         flex-direction: column;
         transition: opacity 0.8s ease-out;
       }
-
       .login-card {
         background: white;
         padding: 60px 40px;
@@ -45,33 +41,19 @@
         width: 80%;
         border: 1px solid #e0e0e0;
       }
-
-      .login-card h2 {
-        margin: 0 0 10px 0;
-        color: #333;
-        font-size: 24px;
-        font-weight: normal;
-      }
-
-      .login-card p {
-        color: #888;
-        font-size: 12px;
-        margin-bottom: 30px;
-      }
-
       #google-btn-wrapper {
         display: flex;
         justify-content: center;
         margin-top: 20px;
       }
 
+      /* APP UI */
       #container {
         width: 100%;
         height: 100%;
         position: absolute;
         top: 0;
       }
-
       #menu {
         position: absolute;
         bottom: 20px;
@@ -90,16 +72,33 @@
         margin: 0 5px;
         text-transform: uppercase;
       }
-
       button:hover {
         background-color: rgba(0, 255, 255, 0.5);
       }
-
       button:active {
         color: #000;
         background-color: rgba(0, 255, 255, 0.75);
       }
 
+      /* LOGOUT BUTTON */
+      #logout-btn {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        border: 1px solid rgba(127, 255, 255, 0.75);
+        background: rgba(0, 0, 0, 0.5);
+        color: rgba(127, 255, 255, 0.75);
+        display: none;
+        cursor: pointer;
+        padding: 8px 15px;
+      }
+      #logout-btn:hover {
+        background-color: rgba(0, 255, 255, 0.5);
+        color: white;
+      }
+
+      /* TILE STYLES */
       .element {
         width: 120px;
         height: 160px;
@@ -114,7 +113,6 @@
         transition: transform 0.3s;
         cursor: default;
       }
-
       .element:hover {
         transform: scale(1.1);
         z-index: 10;
@@ -130,7 +128,6 @@
         border: 2px solid rgba(255, 255, 255, 0.8);
         margin-bottom: 10px;
       }
-
       .element .name {
         font-weight: bold;
         font-size: 14px;
@@ -138,7 +135,6 @@
         margin-bottom: 5px;
         text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
       }
-
       .element .details {
         font-size: 11px;
         background: rgba(0, 0, 0, 0.3);
@@ -146,18 +142,31 @@
         border-radius: 4px;
         color: rgba(255, 255, 255, 0.9);
       }
+
+      .login-logo {
+        width: 100px; /* fixed width */
+        height: 100px; /* fixed height */
+        object-fit: cover; /* keeps image centered & clean */
+        border-radius: 50%; /* round shape */
+        margin-bottom: 15px;
+      }
     </style>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
 
   <body>
+    <!-- LOGIN OVERLAY -->
     <div id="login-overlay">
       <div class="login-card">
-        <h2>Welcome Back</h2>
-        <p>Sign in with Google to continue</p>
+        <img src="image.jpg" class="login-logo" alt="Logo" />
+        <h2>Welcome to Periodictable</h2>
+        <p>Sign in to view the data</p>
         <div id="google-btn-wrapper"></div>
       </div>
     </div>
 
+    <!-- APP CONTENT -->
     <div id="container"></div>
     <div id="menu">
       <button id="table">TABLE</button>
@@ -165,6 +174,7 @@
       <button id="helix">HELIX</button>
       <button id="grid">GRID</button>
     </div>
+    <button id="logout-btn">Sign Out</button>
 
     <script type="importmap">
       {
@@ -184,52 +194,169 @@
         CSS3DObject,
       } from "three/addons/renderers/CSS3DRenderer.js";
 
+      // --- CONFIGURATION ---
       const GOOGLE_CLIENT_ID =
         "471042040576-s0bd041uh64cpognlcsbu7ko0bfge5gp.apps.googleusercontent.com";
+      const GOOGLE_SHEET_CSV_URL =
+        "https://docs.google.com/spreadsheets/d/1ANnOj4xZTW-hYUnw5q-UqlqYCK5XBkIPfLPC_V2vLhs/gviz/tq?tqx=out:csv";
 
       let tableData = [];
       let camera, scene, renderer, controls;
       const objects = [];
       const targets = { table: [], sphere: [], helix: [], grid: [] };
 
-      // FIXED INITIALIZE (No redirect_uri!)
+      // --- 1. HELPER: DECODE TOKEN (To get email for Revoke) ---
+      function parseJwt(token) {
+        try {
+          const base64Url = token.split(".")[1];
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const jsonPayload = decodeURIComponent(
+            window
+              .atob(base64)
+              .split("")
+              .map(function (c) {
+                return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+              })
+              .join("")
+          );
+          return JSON.parse(jsonPayload);
+        } catch (e) {
+          return {};
+        }
+      }
+
+      // --- 2. INITIALIZATION ---
       window.onload = () => {
         google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: handleCredentialResponse,
+          auto_select: false, // Ensure this is false to prevent auto-click
         });
 
+        // Check if user is already logged in
+        const savedToken = localStorage.getItem("google_token");
+
+        if (savedToken) {
+          startSession();
+        } else {
+          renderGoogleButton();
+        }
+      };
+
+      function renderGoogleButton() {
         google.accounts.id.renderButton(
           document.getElementById("google-btn-wrapper"),
           { theme: "outline", size: "large", width: 250 }
         );
-      };
+      }
 
       function handleCredentialResponse(response) {
-        console.log("Google Token:", response.credential);
+        // Save Token
+        localStorage.setItem("google_token", response.credential);
 
+        // Save Email (Required for Revoking/Switching accounts later)
+        const payload = parseJwt(response.credential);
+        if (payload.email) {
+          localStorage.setItem("user_email", payload.email);
+        }
+
+        startSession();
+      }
+
+      function startSession() {
         const overlay = document.getElementById("login-overlay");
         overlay.style.opacity = 0;
         setTimeout(() => (overlay.style.display = "none"), 800);
-
+        document.getElementById("logout-btn").style.display = "block";
         initApp();
       }
 
-      async function initApp() {
-        for (let i = 0; i < 200; i++) {
-          const netWorth = Math.floor(Math.random() * 200000) + 50000;
-          tableData.push({
-            name: `User ${i + 1}`,
-            image: `https://i.pravatar.cc/150?u=${i}`,
-            net_worth: netWorth,
+      // --- 3. LOGOUT LOGIC (UPDATED FOR SWITCHING ACCOUNTS) ---
+      document.getElementById("logout-btn").addEventListener("click", () => {
+        const userEmail = localStorage.getItem("user_email");
+
+        // A. REVOKE: Disconnects the app from the user's Google Account
+        if (window.google && userEmail) {
+          google.accounts.id.revoke(userEmail, (done) => {
+            console.log("Consent revoked for: " + userEmail);
           });
         }
 
-        initScene();
+        // B. Disable Auto-Select (prevents instant re-login)
+        if (window.google) {
+          google.accounts.id.disableAutoSelect();
+        }
+
+        // C. Clear Storage
+        localStorage.removeItem("google_token");
+        localStorage.removeItem("user_email");
+
+        // D. Reset UI
+        const overlay = document.getElementById("login-overlay");
+        overlay.style.display = "flex";
+        setTimeout(() => (overlay.style.opacity = "1"), 10);
+        document.getElementById("logout-btn").style.display = "none";
+
+        // Re-render button to ensure it's fresh
+        renderGoogleButton();
+      });
+
+      // --- CSV PARSING ---
+      function parseCSVRow(row) {
+        const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+        return row
+          .split(regex)
+          .map((cell) => cell.replace(/^"|"$/g, "").trim());
+      }
+
+      async function initApp() {
+        if (tableData.length > 0) return; // Prevent double load
+
+        try {
+          const response = await fetch(GOOGLE_SHEET_CSV_URL);
+          const text = await response.text();
+          const rows = text.split("\n").slice(1);
+
+          tableData = rows
+            .map((row) => {
+              if (!row.trim()) return null;
+              const cols = parseCSVRow(row);
+              if (cols.length < 6) return null;
+
+              let netWorthString = cols[5].replace(/[$,]/g, "");
+              let netWorth = parseInt(netWorthString) || 0;
+
+              return {
+                name: cols[0],
+                image: cols[1],
+                details: cols[4],
+                net_worth: netWorth,
+              };
+            })
+            .filter((item) => item !== null);
+        } catch (err) {
+          console.error("Error loading CSV", err);
+        }
+
+        if (tableData.length === 0) generateMockData();
+
+        init();
         animate();
       }
 
-      function initScene() {
+      function generateMockData() {
+        for (let i = 0; i < 200; i++) {
+          tableData.push({
+            name: `Person ${i}`,
+            image: `https://i.pravatar.cc/150?u=${i}`,
+            details: "Data",
+            net_worth: Math.random() * 250000,
+          });
+        }
+      }
+
+      // --- 3D SCENE ---
+      function init() {
         camera = new THREE.PerspectiveCamera(
           40,
           window.innerWidth / window.innerHeight,
@@ -237,10 +364,9 @@
           10000
         );
         camera.position.z = 3000;
-
         scene = new THREE.Scene();
 
-        tableData.forEach((item, i) => {
+        tableData.forEach((item) => {
           const element = document.createElement("div");
           element.className = "element";
 
@@ -251,9 +377,14 @@
           else element.style.backgroundColor = "rgba(253,202,53,0.85)";
 
           element.innerHTML = `
-            <img src="${item.image}">
+            <img src="${
+              item.image
+            }" onerror="this.src='https://via.placeholder.com/70'">
             <div class="name">${item.name}</div>
             <div class="details">$${item.net_worth.toLocaleString()}</div>
+            <div class="details" style="font-size:10px; margin-top:2px">${
+              item.details
+            }</div>
           `;
 
           const obj = new CSS3DObject(element);
@@ -267,77 +398,16 @@
         });
 
         setupLayouts();
-        setupRenderer();
-        setupControls();
-        setupButtons();
-        transform(targets.table, 2000);
 
-        window.addEventListener("resize", onWindowResize);
-      }
-
-      function setupLayouts() {
-        const vector = new THREE.Vector3();
-        const l = objects.length;
-
-        objects.forEach((obj, i) => {
-          const tableObj = new THREE.Object3D();
-          tableObj.position.x = (i % 20) * 140 - 1330;
-          tableObj.position.y = -Math.floor(i / 20) * 180 + 900;
-          targets.table.push(tableObj);
-        });
-
-        for (let i = 0; i < l; i++) {
-          const phi = Math.acos(-1 + (2 * i) / l);
-          const theta = Math.sqrt(l * Math.PI) * phi;
-          const sphereObj = new THREE.Object3D();
-          sphereObj.position.setFromSphericalCoords(800, phi, theta);
-          vector.copy(sphereObj.position).multiplyScalar(2);
-          sphereObj.lookAt(vector);
-          targets.sphere.push(sphereObj);
-        }
-
-        for (let i = 0; i < l; i++) {
-          const theta = i * 0.175 + (i % 2 ? Math.PI : 0);
-          const y = -i * 8 + 450;
-          const helixObj = new THREE.Object3D();
-          helixObj.position.setFromCylindricalCoords(900, theta, y);
-          vector.set(
-            helixObj.position.x * 2,
-            helixObj.position.y,
-            helixObj.position.z * 2
-          );
-          helixObj.lookAt(vector);
-          targets.helix.push(helixObj);
-        }
-
-        for (let i = 0; i < l; i++) {
-          const ix = i % 10;
-          const iy = Math.floor(i / 10) % 4;
-          const iz = Math.floor(i / 40);
-          const gridObj = new THREE.Object3D();
-          gridObj.position.set(
-            ix * 400 - 1800,
-            -iy * 400 + 600,
-            iz * 1000 - 2000
-          );
-          targets.grid.push(gridObj);
-        }
-      }
-
-      function setupRenderer() {
         renderer = new CSS3DRenderer();
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.getElementById("container").appendChild(renderer.domElement);
-      }
 
-      function setupControls() {
         controls = new TrackballControls(camera, renderer.domElement);
         controls.minDistance = 500;
         controls.maxDistance = 6000;
         controls.addEventListener("change", render);
-      }
 
-      function setupButtons() {
         document
           .getElementById("table")
           .addEventListener("click", () => transform(targets.table, 2000));
@@ -350,6 +420,46 @@
         document
           .getElementById("grid")
           .addEventListener("click", () => transform(targets.grid, 2000));
+
+        transform(targets.table, 2000);
+        window.addEventListener("resize", onWindowResize);
+      }
+
+      function setupLayouts() {
+        objects.forEach((obj, i) => {
+          const t = new THREE.Object3D();
+          t.position.x = (i % 20) * 140 - 1330;
+          t.position.y = -Math.floor(i / 20) * 180 + 900;
+          targets.table.push(t);
+        });
+        const v = new THREE.Vector3();
+        const l = objects.length;
+        for (let i = 0; i < l; i++) {
+          const phi = Math.acos(-1 + (2 * i) / l);
+          const theta = Math.sqrt(l * Math.PI) * phi;
+          const t = new THREE.Object3D();
+          t.position.setFromSphericalCoords(800, phi, theta);
+          v.copy(t.position).multiplyScalar(2);
+          t.lookAt(v);
+          targets.sphere.push(t);
+        }
+        for (let i = 0; i < l; i++) {
+          const theta = i * 0.175 + (i % 2 ? Math.PI : 0);
+          const y = -i * 8 + 450;
+          const t = new THREE.Object3D();
+          t.position.setFromCylindricalCoords(900, theta, y);
+          v.set(t.position.x * 2, t.position.y, t.position.z * 2);
+          t.lookAt(v);
+          targets.helix.push(t);
+        }
+        for (let i = 0; i < l; i++) {
+          const ix = i % 10;
+          const iy = Math.floor(i / 10) % 4;
+          const iz = Math.floor(i / 40);
+          const t = new THREE.Object3D();
+          t.position.set(ix * 400 - 1800, -iy * 400 + 600, iz * 1000 - 2000);
+          targets.grid.push(t);
+        }
       }
 
       function transform(targets, duration) {
@@ -357,18 +467,15 @@
         objects.forEach((obj, i) => {
           const target = targets[i];
           if (!target) return;
-
           new TWEEN.Tween(obj.position)
             .to(target.position, Math.random() * duration + duration)
             .easing(TWEEN.Easing.Exponential.InOut)
             .start();
-
           new TWEEN.Tween(obj.rotation)
             .to(target.rotation, Math.random() * duration + duration)
             .easing(TWEEN.Easing.Exponential.InOut)
             .start();
         });
-
         new TWEEN.Tween(this)
           .to({}, duration * 2)
           .onUpdate(render)
@@ -381,13 +488,11 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         render();
       }
-
       function animate() {
         requestAnimationFrame(animate);
         TWEEN.update();
         controls.update();
       }
-
       function render() {
         renderer.render(scene, camera);
       }
