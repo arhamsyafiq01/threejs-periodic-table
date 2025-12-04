@@ -41,19 +41,6 @@ This is an interactive 3D data visualization web application built using **Three
 
 ---
 
-## Project Structure
-
-/project-folder
-├─ index.html # Main webpage
-├─ main.css # Styles
-├─ image.jpg # Logo
-└─ /assets/ # Optional images/icons
-
-yaml
-Copy code
-
----
-
 ## Live Demo
 
 (https://arhamsyafiq01.github.io/threejs-periodic-table/)
@@ -63,3 +50,4 @@ Copy code
 ## Author
 
 **[Arham Syafiq]**
+
