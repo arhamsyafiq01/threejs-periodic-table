@@ -110,7 +110,7 @@
       <p>Please sign in to load data from Google Sheets</p>
       <div
         id="g_id_onload"
-        data-client_id="YOUR_GOOGLE_CLOUD_CLIENT_ID_HERE"
+        data-client_id="661362557034-blcndd2cpt3scd281mls1ebsvu7nau82.apps.googleusercontent.com"
         data-context="signin"
         data-ux_mode="popup"
         data-callback="handleCredentialResponse"
@@ -187,7 +187,8 @@
 
       function gisLoaded() {
         tokenClient = google.accounts.oauth2.initTokenClient({
-          client_id: "YOUR_GOOGLE_CLOUD_CLIENT_ID_HERE", // PASTE CLIENT ID HERE TOO
+          client_id:
+            "661362557034-blcndd2cpt3scd281mls1ebsvu7nau82.apps.googleusercontent.com", // PASTE CLIENT ID HERE TOO
           scope: "https://www.googleapis.com/auth/spreadsheets.readonly",
           callback: "", // defined later
         });
