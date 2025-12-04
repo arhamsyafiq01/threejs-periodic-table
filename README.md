@@ -1,4 +1,4 @@
-# 3D Periodic Table Data Visualization – Kasatria Assessment
+# 3D Periodic Table Data Visualization
 
 ## Overview
 This is an interactive 3D data visualization web application built using **Three.js** and **CSS3DRenderer**. The app fetches data from a Google Sheet, displays it in a 3D "periodic table" format, and requires Google login for access.
@@ -50,4 +50,5 @@ This is an interactive 3D data visualization web application built using **Three
 ## Author
 
 **[Arham Syafiq]**
+
 
