@@ -8,155 +8,13 @@
       name="viewport"
       content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
     />
-    <style>
-      body {
-        margin: 0;
-        font-family: Helvetica, sans-serif;
-        background-color: #000;
-        overflow: hidden;
-      }
-
-      /* LOGIN UI */
-      #login-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background-color: #ffffff;
-        z-index: 9999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        transition: opacity 0.8s ease-out;
-      }
-      .login-card {
-        background: white;
-        padding: 60px 40px;
-        border-radius: 8px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        text-align: center;
-        max-width: 400px;
-        width: 80%;
-        border: 1px solid #e0e0e0;
-      }
-      #google-btn-wrapper {
-        display: flex;
-        justify-content: center;
-        margin-top: 20px;
-      }
-
-      /* APP UI */
-      #container {
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        top: 0;
-      }
-      #menu {
-        position: absolute;
-        bottom: 20px;
-        width: 100%;
-        text-align: center;
-        z-index: 100;
-      }
-
-      button {
-        color: rgba(127, 255, 255, 0.75);
-        background: transparent;
-        outline: 1px solid rgba(127, 255, 255, 0.75);
-        border: 0;
-        padding: 5px 10px;
-        cursor: pointer;
-        margin: 0 5px;
-        text-transform: uppercase;
-      }
-      button:hover {
-        background-color: rgba(0, 255, 255, 0.5);
-      }
-      button:active {
-        color: #000;
-        background-color: rgba(0, 255, 255, 0.75);
-      }
-
-      /* LOGOUT BUTTON */
-      #logout-btn {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        z-index: 1000;
-        border: 1px solid rgba(127, 255, 255, 0.75);
-        background: rgba(0, 0, 0, 0.5);
-        color: rgba(127, 255, 255, 0.75);
-        display: none;
-        cursor: pointer;
-        padding: 8px 15px;
-      }
-      #logout-btn:hover {
-        background-color: rgba(0, 255, 255, 0.5);
-        color: white;
-      }
-
-      /* TILE STYLES */
-      .element {
-        width: 120px;
-        height: 160px;
-        box-shadow: 0px 0px 12px rgba(0, 255, 255, 0.5);
-        border: 1px solid rgba(127, 255, 255, 0.25);
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        transition: transform 0.3s;
-        cursor: default;
-      }
-      .element:hover {
-        transform: scale(1.1);
-        z-index: 10;
-        box-shadow: 0 0 12px rgba(255, 255, 255, 0.75);
-        border: 1px solid rgba(255, 255, 255, 0.75);
-      }
-
-      .element img {
-        width: 70px;
-        height: 70px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 2px solid rgba(255, 255, 255, 0.8);
-        margin-bottom: 10px;
-      }
-      .element .name {
-        font-weight: bold;
-        font-size: 14px;
-        text-transform: uppercase;
-        margin-bottom: 5px;
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-      }
-      .element .details {
-        font-size: 11px;
-        background: rgba(0, 0, 0, 0.3);
-        padding: 2px 6px;
-        border-radius: 4px;
-        color: rgba(255, 255, 255, 0.9);
-      }
-
-      .login-logo {
-        width: 100px; /* fixed width */
-        height: 100px; /* fixed height */
-        object-fit: cover; /* keeps image centered & clean */
-        border-radius: 50%; /* round shape */
-        margin-bottom: 15px;
-      }
-    </style>
+    <link rel="stylesheet" href="style.css" />
 
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
 
   <body>
-    <!-- LOGIN OVERLAY -->
+    <!-- LOGIN -->
     <div id="login-overlay">
       <div class="login-card">
         <img src="image.jpg" class="login-logo" alt="Logo" />
@@ -173,6 +31,7 @@
       <button id="sphere">SPHERE</button>
       <button id="helix">HELIX</button>
       <button id="grid">GRID</button>
+      <button id="tetra">TETRA</button>
     </div>
     <button id="logout-btn">Sign Out</button>
 
@@ -203,7 +62,7 @@
       let tableData = [];
       let camera, scene, renderer, controls;
       const objects = [];
-      const targets = { table: [], sphere: [], helix: [], grid: [] };
+      const targets = { table: [], sphere: [], helix: [], grid: [], tetra: [] };
 
       // --- 1. HELPER: DECODE TOKEN (To get email for Revoke) ---
       function parseJwt(token) {
@@ -230,10 +89,9 @@
         google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: handleCredentialResponse,
-          auto_select: false, // Ensure this is false to prevent auto-click
+          auto_select: false,
         });
 
-        // Check if user is already logged in
         const savedToken = localStorage.getItem("google_token");
 
         if (savedToken) {
@@ -251,10 +109,7 @@
       }
 
       function handleCredentialResponse(response) {
-        // Save Token
         localStorage.setItem("google_token", response.credential);
-
-        // Save Email (Required for Revoking/Switching accounts later)
         const payload = parseJwt(response.credential);
         if (payload.email) {
           localStorage.setItem("user_email", payload.email);
@@ -271,7 +126,7 @@
         initApp();
       }
 
-      // --- 3. LOGOUT LOGIC (UPDATED FOR SWITCHING ACCOUNTS) ---
+      // --- 3. LOGOUT LOGIC  ---
       document.getElementById("logout-btn").addEventListener("click", () => {
         const userEmail = localStorage.getItem("user_email");
 
@@ -420,6 +275,9 @@
         document
           .getElementById("grid")
           .addEventListener("click", () => transform(targets.grid, 2000));
+        document
+          .getElementById("tetra")
+          .addEventListener("click", () => transform(targets.tetra, 2000));
 
         transform(targets.table, 2000);
         window.addEventListener("resize", onWindowResize);
@@ -432,8 +290,10 @@
           t.position.y = -Math.floor(i / 20) * 180 + 900;
           targets.table.push(t);
         });
+
         const v = new THREE.Vector3();
         const l = objects.length;
+
         for (let i = 0; i < l; i++) {
           const phi = Math.acos(-1 + (2 * i) / l);
           const theta = Math.sqrt(l * Math.PI) * phi;
@@ -443,6 +303,7 @@
           t.lookAt(v);
           targets.sphere.push(t);
         }
+
         for (let i = 0; i < l; i++) {
           const theta = i * 0.175 + (i % 2 ? Math.PI : 0);
           const y = -i * 8 + 450;
@@ -452,6 +313,7 @@
           t.lookAt(v);
           targets.helix.push(t);
         }
+
         for (let i = 0; i < l; i++) {
           const ix = i % 10;
           const iy = Math.floor(i / 10) % 4;
@@ -459,6 +321,59 @@
           const t = new THREE.Object3D();
           t.position.set(ix * 400 - 1800, -iy * 400 + 600, iz * 1000 - 2000);
           targets.grid.push(t);
+        }
+
+        // --- TETRAHEDRON LAYOUT ---
+        const A = new THREE.Vector3(0, 700, 0); // top
+        const B = new THREE.Vector3(600, -400, 600); // base corner 1
+        const C = new THREE.Vector3(-600, -400, 600); // base corner 2
+        const D = new THREE.Vector3(0, -400, -700); // base corner 3
+
+        const verts = [A, B, C, D];
+        const faces = [
+          [0, 1, 2], // A, B, C
+          [0, 2, 3], // A, C, D
+          [0, 3, 1], // A, D, B
+          [1, 2, 3], // B, C, D
+        ];
+
+        // Centroid of the tetrahedron
+        const centroid = new THREE.Vector3()
+          .add(A)
+          .add(B)
+          .add(C)
+          .add(D)
+          .multiplyScalar(0.25);
+
+        for (let i = 0; i < l; i++) {
+          const t = new THREE.Object3D();
+
+          // Pick one of the four triangle faces
+          const face = i % 4;
+          const [i1, i2, i3] = faces[face];
+
+          const v1 = verts[i1];
+          const v2 = verts[i2];
+          const v3 = verts[i3];
+
+          // Random barycentric coords to scatter items on triangle
+          let u = Math.random();
+          let v = Math.random();
+          if (u + v > 1) {
+            u = 1 - u;
+            v = 1 - v;
+          }
+
+          const pos = new THREE.Vector3()
+            .addScaledVector(v1, 1 - u - v)
+            .addScaledVector(v2, u)
+            .addScaledVector(v3, v);
+
+          t.position.copy(pos);
+
+          t.lookAt(centroid);
+
+          targets.tetra.push(t);
         }
       }
 
