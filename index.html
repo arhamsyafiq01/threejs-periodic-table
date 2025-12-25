@@ -26,6 +26,7 @@
 
     <!-- APP CONTENT -->
     <div id="container"></div>
+
     <div id="menu">
       <button id="table">TABLE</button>
       <button id="sphere">SPHERE</button>
@@ -34,6 +35,12 @@
       <button id="tetra">TETRA</button>
     </div>
     <button id="logout-btn">Sign Out</button>
+
+    <div id="heatmap-container">
+      <span class="heatmap-label">LOW</span>
+      <div class="heatmap-bar"></div>
+      <span class="heatmap-label">HIGH</span>
+    </div>
 
     <script type="importmap">
       {
@@ -232,15 +239,15 @@
           else element.style.backgroundColor = "rgba(253,202,53,0.85)";
 
           element.innerHTML = `
-            <img src="${
-              item.image
-            }" onerror="this.src='https://via.placeholder.com/70'">
-            <div class="name">${item.name}</div>
-            <div class="details">$${item.net_worth.toLocaleString()}</div>
-            <div class="details" style="font-size:10px; margin-top:2px">${
-              item.details
-            }</div>
-          `;
+              <img src="${
+                item.image
+              }" onerror="this.src='https://via.placeholder.com/70'">
+              <div class="name">${item.name}</div>
+              <div class="details">$${item.net_worth.toLocaleString()}</div>
+              <div class="details" style="font-size:10px; margin-top:2px">${
+                item.details
+              }</div>
+            `;
 
           const obj = new CSS3DObject(element);
           obj.position.set(
@@ -284,6 +291,7 @@
       }
 
       function setupLayouts() {
+        // --- TABLE LAYOUT ---
         objects.forEach((obj, i) => {
           const t = new THREE.Object3D();
           t.position.x = (i % 20) * 140 - 1330;
@@ -294,6 +302,7 @@
         const v = new THREE.Vector3();
         const l = objects.length;
 
+        // --- SPHERE LAYOUT ---
         for (let i = 0; i < l; i++) {
           const phi = Math.acos(-1 + (2 * i) / l);
           const theta = Math.sqrt(l * Math.PI) * phi;
@@ -304,6 +313,7 @@
           targets.sphere.push(t);
         }
 
+        // --- HELIX LAYOUT ---
         for (let i = 0; i < l; i++) {
           const theta = i * 0.175 + (i % 2 ? Math.PI : 0);
           const y = -i * 8 + 450;
@@ -314,6 +324,7 @@
           targets.helix.push(t);
         }
 
+        // --- GRID LAYOUT ---
         for (let i = 0; i < l; i++) {
           const ix = i % 10;
           const iy = Math.floor(i / 10) % 4;
@@ -323,11 +334,12 @@
           targets.grid.push(t);
         }
 
-        // --- TETRAHEDRON LAYOUT ---
-        const A = new THREE.Vector3(0, 700, 0); // top
-        const B = new THREE.Vector3(600, -400, 600); // base corner 1
-        const C = new THREE.Vector3(-600, -400, 600); // base corner 2
-        const D = new THREE.Vector3(0, -400, -700); // base corner 3
+        // --- STRUCTURED TETRAHEDRON LAYOUT ---
+        // 1. Define Geometry
+        const A = new THREE.Vector3(0, 800, 0); // Top
+        const B = new THREE.Vector3(700, -400, 700); // Corner
+        const C = new THREE.Vector3(-700, -400, 700); // Corner
+        const D = new THREE.Vector3(0, -400, -800); // Back Corner
 
         const verts = [A, B, C, D];
         const faces = [
@@ -336,44 +348,57 @@
           [0, 3, 1], // A, D, B
           [1, 2, 3], // B, C, D
         ];
+        const centroid = new THREE.Vector3(0, -100, 0); // Visual center
 
-        // Centroid of the tetrahedron
-        const centroid = new THREE.Vector3()
-          .add(A)
-          .add(B)
-          .add(C)
-          .add(D)
-          .multiplyScalar(0.25);
+        // 2. Distribute items
+        const rowsPerFace = 10;
+        let itemsPlaced = 0;
 
-        for (let i = 0; i < l; i++) {
-          const t = new THREE.Object3D();
-
-          // Pick one of the four triangle faces
-          const face = i % 4;
-          const [i1, i2, i3] = faces[face];
-
+        for (let faceIdx = 0; faceIdx < 4; faceIdx++) {
+          const [i1, i2, i3] = faces[faceIdx];
           const v1 = verts[i1];
           const v2 = verts[i2];
           const v3 = verts[i3];
 
-          // Random barycentric coords to scatter items on triangle
-          let u = Math.random();
-          let v = Math.random();
-          if (u + v > 1) {
-            u = 1 - u;
-            v = 1 - v;
+          for (let r = 0; r < rowsPerFace; r++) {
+            const itemsInRow = r + 1;
+            const rowPercent = r / (rowsPerFace - 1);
+
+            for (let c = 0; c < itemsInRow; c++) {
+              if (itemsPlaced >= l) break;
+
+              const t = new THREE.Object3D();
+              const colPercent = itemsInRow > 1 ? c / (itemsInRow - 1) : 0.5;
+
+              const leftEdge = new THREE.Vector3().lerpVectors(
+                v1,
+                v2,
+                rowPercent
+              );
+              const rightEdge = new THREE.Vector3().lerpVectors(
+                v1,
+                v3,
+                rowPercent
+              );
+              const pos = new THREE.Vector3().lerpVectors(
+                leftEdge,
+                rightEdge,
+                colPercent
+              );
+
+              t.position.copy(pos);
+
+              // Orient cards to face outward
+              const direction = new THREE.Vector3()
+                .subVectors(pos, centroid)
+                .normalize();
+              const lookTarget = new THREE.Vector3().addVectors(pos, direction);
+              t.lookAt(lookTarget);
+
+              targets.tetra.push(t);
+              itemsPlaced++;
+            }
           }
-
-          const pos = new THREE.Vector3()
-            .addScaledVector(v1, 1 - u - v)
-            .addScaledVector(v2, u)
-            .addScaledVector(v3, v);
-
-          t.position.copy(pos);
-
-          t.lookAt(centroid);
-
-          targets.tetra.push(t);
         }
       }
 
