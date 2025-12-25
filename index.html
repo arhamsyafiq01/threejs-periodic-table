@@ -326,9 +326,9 @@
 
         // --- GRID LAYOUT ---
         for (let i = 0; i < l; i++) {
-          const ix = i % 10;
-          const iy = Math.floor(i / 10) % 4;
-          const iz = Math.floor(i / 40);
+          const ix = i % 5; // columns (0–4)
+          const iy = Math.floor(i / 5) % 4; // rows (0–3)
+          const iz = Math.floor(i / 20); // depth (0–9)
           const t = new THREE.Object3D();
           t.position.set(ix * 400 - 1800, -iy * 400 + 600, iz * 1000 - 2000);
           targets.grid.push(t);
